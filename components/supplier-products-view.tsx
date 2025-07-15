@@ -21,17 +21,6 @@ import { ArrowLeft, MoreHorizontal, Edit, Trash2, Plus, Package, TrendingUp, Dol
 import { AddProductModal } from "@/components/modals/add-product-modal"
 import { EditProductModal } from "@/components/modals/edit-product-modal"
 
-interface Supplier {
-  id: string
-  name: string
-  brandName: string
-  email: string
-  phone: string
-  productsCount: number
-  status: "active" | "inactive"
-  joinedDate: string
-}
-
 interface Product {
   id: string
   name: string
@@ -51,7 +40,7 @@ interface Product {
 }
 
 interface SupplierProductsViewProps {
-  supplier: Supplier
+  supplier: any
   onBack: () => void
 }
 
@@ -322,7 +311,7 @@ export function SupplierProductsView({ supplier, onBack }: SupplierProductsViewP
       </Card>
 
       {/* Modals */}
-      <AddProductModal open={showAddProductModal} onOpenChange={setShowAddProductModal} />
+      <AddProductModal supplierId={supplier.supplier.id} open={showAddProductModal} onOpenChange={setShowAddProductModal} />
 
       {selectedProduct && (
         <EditProductModal

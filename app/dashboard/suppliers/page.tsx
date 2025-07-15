@@ -23,58 +23,62 @@ interface Supplier {
 }
 
 // Mock fetcher function - replace with your actual API call
-const fetcher = async (url: string) => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+// const fetcher = async (url: string) => {
+//   // Simulate API delay
+//   await new Promise((resolve) => setTimeout(resolve, 1000))
 
-  // Mock data - replace with actual API call
-  return [
-    {
-      id: "1",
-      name: "John Doe",
-      brandName: "TechCorp",
-      email: "john@techcorp.com",
-      phone: "+1234567890",
-      productsCount: 15,
-      status: "active",
-      joinedDate: "2024-01-15",
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      brandName: "Fashion Hub",
-      email: "jane@fashionhub.com",
-      phone: "+1234567891",
-      productsCount: 8,
-      status: "active",
-      joinedDate: "2024-02-20",
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      brandName: "Beauty Essentials",
-      email: "mike@beautyessentials.com",
-      phone: "+1234567892",
-      productsCount: 23,
-      status: "inactive",
-      joinedDate: "2024-01-10",
-    },
-  ] as Supplier[]
-}
+//   // Mock supplierData - replace with actual API call
+//   return [
+//     {
+//       id: "1",
+//       name: "John Doe",
+//       brandName: "TechCorp",
+//       email: "john@techcorp.com",
+//       phone: "+1234567890",
+//       productsCount: 15,
+//       status: "active",
+//       joinedDate: "2024-01-15",
+//     },
+//     {
+//       id: "2",
+//       name: "Jane Smith",
+//       brandName: "Fashion Hub",
+//       email: "jane@fashionhub.com",
+//       phone: "+1234567891",
+//       productsCount: 8,
+//       status: "active",
+//       joinedDate: "2024-02-20",
+//     },
+//     {
+//       id: "3",
+//       name: "Mike Johnson",
+//       brandName: "Beauty Essentials",
+//       email: "mike@beautyessentials.com",
+//       phone: "+1234567892",
+//       productsCount: 23,
+//       status: "inactive",
+//       joinedDate: "2024-01-10",
+//     },
+//   ] as Supplier[]
+// }
+
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 
 export default function SuppliersPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [selectedSupplier, setSelectedSupplier] = useState(null)
   const [showAddProductModal, setShowAddProductModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("")
 
-  const { data: suppliers, error, isLoading } = useSWR<Supplier[]>("/api/suppliers", fetcher)
+  const { data: supplierData, error, isLoading } = useSWR("/api/admin/user/suppliers", fetcher)
 
   const filteredSuppliers =
-    suppliers?.filter(
+    supplierData?.suppliers?.filter(
       (supplier) =>
         supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        supplier.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        supplier.supplier.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         supplier.email.toLowerCase().includes(searchTerm.toLowerCase()),
     ) || []
 
@@ -83,7 +87,7 @@ export default function SuppliersPage() {
     setShowAddProductModal(true)
   }
 
-  const handleSupplierClick = (supplier: Supplier) => {
+  const handleSupplierClick = (supplier) => {
     setSelectedSupplier(supplier)
   }
 
@@ -124,7 +128,7 @@ export default function SuppliersPage() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{suppliers?.length || 0}</div>
+            <div className="text-2xl font-bold">{supplierData.suppliers?.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -132,32 +136,10 @@ export default function SuppliersPage() {
             <CardTitle className="text-sm font-medium">Active Suppliers</CardTitle>
             <User className="h-4 w-4 text-green-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{suppliers?.filter((s) => s.status === "active").length || 0}</div>
-          </CardContent>
+        
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{suppliers?.reduce((acc, s) => acc + s.productsCount, 0) || 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Products/Supplier</CardTitle>
-            <Package className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {suppliers?.length
-                ? Math.round(suppliers.reduce((acc, s) => acc + s.productsCount, 0) / suppliers.length)
-                : 0}
-            </div>
-          </CardContent>
-        </Card>
+       
+      
       </div>
 
       {/* Suppliers List */}
@@ -191,7 +173,7 @@ export default function SuppliersPage() {
             <div className="space-y-4">
               {filteredSuppliers.map((supplier) => (
                 <div
-                  key={supplier.id}
+                  key={supplier.supplier.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => handleSupplierClick(supplier)}
                 >
@@ -202,9 +184,7 @@ export default function SuppliersPage() {
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold">{supplier.name}</h3>
-                        <Badge variant={supplier.status === "active" ? "default" : "secondary"}>
-                          {supplier.status}
-                        </Badge>
+                      
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
@@ -217,8 +197,7 @@ export default function SuppliersPage() {
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Brand: <span className="font-medium">{supplier.brandName}</span> • Products:{" "}
-                        <span className="font-medium">{supplier.productsCount}</span>
+                        Brand: <span className="font-medium">{supplier.supplier.businessName}</span>
                       </div>
                     </div>
                   </div>
@@ -228,7 +207,7 @@ export default function SuppliersPage() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleAddProduct(supplier.id)
+                        handleAddProduct(supplier.supplier.id)
                       }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
@@ -243,7 +222,7 @@ export default function SuppliersPage() {
       </Card>
 
       {/* Add Product Modal */}
-      <AddProductModal open={showAddProductModal} onOpenChange={setShowAddProductModal} />
+      <AddProductModal supplierId={selectedSupplierId} open={showAddProductModal} onOpenChange={setShowAddProductModal} />
     </div>
   )
 }
