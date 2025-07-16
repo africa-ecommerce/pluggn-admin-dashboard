@@ -738,7 +738,7 @@ export function AddProductModal({
       const { images, imageUrls, ...jsonData } = data;
       formData.append("productData", JSON.stringify(jsonData));
 
-      const response = await fetch(`/api/admin/products/${supplierId}`, {
+      const response = await fetch(`/api/admin/product/${supplierId}`, {
         method: "POST",
         body: formData,
       });
