@@ -11,12 +11,12 @@ import { Shield, Users, Package, BarChart3 } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-orange-200">
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Supplier Dashboard
+            Admin Dashboard
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Manage your suppliers, track products, and monitor performance all
