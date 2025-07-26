@@ -735,7 +735,7 @@ export function SupplierProductsView({
 
       {/* Modals */}
       <AddProductModal
-        supplierId={supplier.id}
+        supplierId={supplier.supplier.id}
         open={showAddProductModal}
         onOpenChange={setShowAddProductModal}
       />
@@ -745,6 +745,7 @@ export function SupplierProductsView({
           onOpenChange={setShowEditModal}
           productId={selectedProduct.id}
           itemData={selectedProduct}
+        supplierId={supplier.supplier.id}
         />
       )}
 
