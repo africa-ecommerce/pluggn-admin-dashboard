@@ -6,7 +6,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 // Public routes that don't require authentication
-const publicRoutes = ["/", "/login"];
+const publicRoutes = ["/", "/login", "/dashboard/suppliers"];
 
 // API routes that don't require authentication
 
