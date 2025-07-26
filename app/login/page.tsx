@@ -24,13 +24,14 @@ export default function LoginPage() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [otpSent, setOtpSent] = useState(true); // Changed to true by default
   const [countdown, setCountdown] = useState(0);
   const router = useRouter();
 
-  // Auto-send OTP when component mounts
+  // Auto-show success message when redirected from homepage
   useEffect(() => {
-    sendOtp();
+    setSuccess("Verification code sent to admin email!");
+    setCountdown(60); // Start countdown immediately
   }, []);
 
   // Countdown timer for resend OTP
@@ -132,9 +133,7 @@ export default function LoginPage() {
             </div>
             <CardTitle className="text-2xl">Admin Login</CardTitle>
             <CardDescription>
-              {!otpSent
-                ? "Sending verification code to admin email..."
-                : "Enter the 6-digit code sent to your email"}
+              Enter the 6-digit code sent to your email
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -168,62 +167,58 @@ export default function LoginPage() {
             )}
 
             {/* OTP Form */}
-            {otpSent && (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="otp">Verification Code</Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="000000"
-                    value={otp}
-                    onChange={handleOtpChange}
-                    className="text-center text-2xl font-mono tracking-widest"
-                    maxLength={6}
-                    disabled={isLoading}
-                  />
-                  <p className="text-sm text-gray-500 text-center">
-                    Enter the 6-digit code from your email
-                  </p>
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="otp">Verification Code</Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={handleOtpChange}
+                  className="text-center text-2xl font-mono tracking-widest"
+                  maxLength={6}
+                  disabled={isLoading}
+                />
+                <p className="text-sm text-gray-500 text-center">
+                  Enter the 6-digit code from your email
+                </p>
+              </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading || otp.length !== 6}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    "Verify & Login"
-                  )}
-                </Button>
-              </form>
-            )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || otp.length !== 6}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify & Login"
+                )}
+              </Button>
+            </form>
 
             {/* Resend OTP */}
-            {otpSent && (
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600 mb-2">
-                  Didn't receive the code?
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={sendOtp}
-                  disabled={countdown > 0 || isSendingOtp}
-                >
-                  {countdown > 0
-                    ? `Resend in ${countdown}s`
-                    : isSendingOtp
-                    ? "Sending..."
-                    : "Resend Code"}
-                </Button>
-              </div>
-            )}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600 mb-2">
+                Didn't receive the code?
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sendOtp}
+                disabled={countdown > 0 || isSendingOtp}
+              >
+                {countdown > 0
+                  ? `Resend in ${countdown}s`
+                  : isSendingOtp
+                  ? "Sending..."
+                  : "Resend Code"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
