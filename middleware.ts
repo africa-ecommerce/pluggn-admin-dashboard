@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "your-secret-key"
+  process.env.JWT_SECRET || "JWT_SECRET"
 );
 
 // Public routes that don't require authentication
