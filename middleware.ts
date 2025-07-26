@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Get session cookie
-  const sessionCookie = sessionStorage.get("token");
+  const sessionCookie = request.cookies.get("session");
 
   if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));

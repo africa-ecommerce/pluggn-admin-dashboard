@@ -94,7 +94,6 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        sessionStorage.setItem("token", data.token); // Store token in session storage
         setSuccess("Login successful! Redirecting...");
         // Redirect to dashboard after successful login
         setTimeout(() => {
