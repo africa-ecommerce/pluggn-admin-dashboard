@@ -47,7 +47,7 @@ export default function LoginPage() {
     setSuccess("");
 
     try {
-      const response = await fetch("/api/auth/send-otp", {
+      const response = await fetch("/api/admin/auth/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/verify-otp", {
+      const response = await fetch("/api/admin/auth/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
