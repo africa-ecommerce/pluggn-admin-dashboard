@@ -1,5 +1,3 @@
-
-
 import { type NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
@@ -13,7 +11,7 @@ const publicRoutes = ["/", "/login"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip all API routes - no authentication required
+  // Skip all API routes
   if (pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
@@ -24,10 +22,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow static files and Next.js internals
-  if (
-    pathname.startsWith("/_next/") ||
-    pathname.includes(".") // Static files (images, css, js, etc.)
-  ) {
+  if (pathname.startsWith("/_next/") || pathname.includes(".")) {
     return NextResponse.next();
   }
 
@@ -35,29 +30,15 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("session");
 
   if (!sessionCookie) {
-    // No session cookie, redirect to login
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   try {
-    // Verify JWT token
-    const { payload } = await jwtVerify(sessionCookie.value, JWT_SECRET);
-
-    // Check if token is still valid (additional check)
-    const loginTime = payload.loginTime as number;
-    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
-
-    if (loginTime < thirtyMinutesAgo) {
-      // Token is older than 30 minutes, redirect to login
-      const response = NextResponse.redirect(new URL("/login", request.url));
-      response.cookies.delete("session");
-      return response;
-    }
-
-    // Session is valid, allow access
+    // Verify JWT token (will throw if expired)
+    await jwtVerify(sessionCookie.value, JWT_SECRET);
     return NextResponse.next();
   } catch (error) {
-    // Invalid token, redirect to login
+    // Invalid or expired token
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete("session");
     return response;
@@ -65,13 +46,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
