@@ -13,7 +13,7 @@ export function LogoutButton() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/logout", {
+      const response = await fetch("/api/admin/auth/logout", {
         method: "POST",
       });
 
