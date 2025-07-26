@@ -356,7 +356,7 @@ export default function SuppliersPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />
-                          {supplier.phone}
+                          {supplier.supplier.phone}
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
