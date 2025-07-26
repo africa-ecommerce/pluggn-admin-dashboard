@@ -94,10 +94,11 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
+        sessionStorage.setItem("token", data.token); // Store token in session storage
         setSuccess("Login successful! Redirecting...");
         // Redirect to dashboard after successful login
         setTimeout(() => {
-          router.push("/dashboard/suppliers");
+          router.push("/dashboard/");
         }, 1000);
       } else {
         setError(data.error || "Invalid verification code");
