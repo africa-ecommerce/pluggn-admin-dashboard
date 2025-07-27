@@ -374,6 +374,8 @@ export default function OrdersPage() {
   ) => {
     setUpdatingOrders((prev) => new Set(prev).add(orderId));
 
+console.log("now", JSON.stringify({ orderId }))
+
     try {
       const endpoint =
         newStatus === "SHIPPED"
