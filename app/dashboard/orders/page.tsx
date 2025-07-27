@@ -581,7 +581,7 @@ console.log("now", JSON.stringify({ orderId }))
                                 <Button
                                   size="sm"
                                   onClick={() =>
-                                    updateOrderStatus(order.orderId, "SHIPPED")
+                                    updateOrderStatus(order.id, "SHIPPED")
                                   }
                                   disabled={updatingOrders.has(order.orderId)}
                                 >
@@ -598,7 +598,7 @@ console.log("now", JSON.stringify({ orderId }))
                                   size="sm"
                                   onClick={() =>
                                     updateOrderStatus(
-                                      order.orderId,
+                                      order.id,
                                       "DELIVERED"
                                     )
                                   }
