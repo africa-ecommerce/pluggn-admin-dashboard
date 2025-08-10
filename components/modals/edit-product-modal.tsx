@@ -792,9 +792,9 @@ import { type ProductFormData, productFormSchema } from "@/zod/schema";
 
 export const PRODUCT_CATEGORIES = [
   { value: "all", label: "All Categories" },
-  { value: "electronics", label: "Electronics" },
-  { value: "fashion", label: "Fashion" },
-  { value: "beauty_skincare", label: "Beauty & Skincare" },
+  { value: "footwears", label: "Footwears" },
+  { value: "bags", label: "Bags" },
+  { value: "accessories", label: "Accessories" },
 ];
 
 interface Variation {
