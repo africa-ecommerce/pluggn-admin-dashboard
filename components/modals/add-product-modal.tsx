@@ -40,6 +40,7 @@ export const PRODUCT_CATEGORIES = [
   { value: "footwears", label: "Footwears" },
   { value: "bags", label: "Bags" },
   { value: "accessories", label: "Accessories" },
+  {value: "curated_fashion", label: "Curated Fashion"}
 ];
 
 interface Variation {
