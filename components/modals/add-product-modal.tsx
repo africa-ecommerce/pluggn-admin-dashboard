@@ -37,7 +37,7 @@ import { type ProductFormData, productFormSchema } from "@/zod/schema";
 
 export const PRODUCT_CATEGORIES = [
   { value: "all", label: "All Categories" },
-  { value: "electronics", label: "Electronics" },
+  { value: "footwears", label: "Footwears" },
   { value: "fashion", label: "Fashion" },
   { value: "beauty_skincare", label: "Beauty & Skincare" },
 ];
