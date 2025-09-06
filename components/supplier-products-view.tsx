@@ -553,13 +553,16 @@ export function SupplierProductsView({
 
   const confirmApprove = async () => {
     if (!productToApprove) return;
-    
+        console.log("minPrice", parseFloat(minPrice))
+        console.log("maxPrice", parseFloat(maxPrice))
     try {
       const response = await fetch(`/api/admin/product/approve/${productToApprove.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
+
+       
         body: JSON.stringify({
           minPrice: parseFloat(minPrice),
           maxPrice: parseFloat(maxPrice),
