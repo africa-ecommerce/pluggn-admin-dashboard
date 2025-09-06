@@ -102,6 +102,8 @@ export function SupplierProductsView({
     productsFetcher
   );
 
+  console.log("products", products)
+
   const handleEditProduct = (product: Product) => {
     setSelectedProduct(product);
     setShowEditModal(true);

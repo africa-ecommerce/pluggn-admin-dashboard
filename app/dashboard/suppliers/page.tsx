@@ -38,6 +38,8 @@ export default function SuppliersPage() {
     isLoading,
   } = useSWR("/api/admin/user/suppliers", fetcher);
 
+  console.log("supplierData", supplierData)
+
   // Safe access to suppliers array
   const suppliers = supplierData?.suppliers || [];
 
