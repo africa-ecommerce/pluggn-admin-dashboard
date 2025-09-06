@@ -556,7 +556,7 @@ export function SupplierProductsView({
     
     try {
       const response = await fetch(`/api/admin/product/approve/${productToApprove.id}`, {
-        method: "POST",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -586,7 +586,7 @@ export function SupplierProductsView({
     
     try {
       const response = await fetch(`/api/admin/product/query/${productToQuery.id}`, {
-        method: "POST",
+        method: "PUT",
       });
       
       if (!response.ok) {
