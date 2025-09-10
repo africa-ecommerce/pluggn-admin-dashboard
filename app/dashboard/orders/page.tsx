@@ -565,6 +565,10 @@ export default function OrdersPage() {
   console.log("orders", orders);
 
   const handleRowClick = async (orderId: string) => {
+
+     if (activeTab !== "PENDING") {
+       return;
+     }
     setLoadingOrderDetails(true);
     try {
       const res = await fetch(`/api/admin/order/${orderId}`);
@@ -770,7 +774,7 @@ export default function OrdersPage() {
                         <TableRow
                           key={order.id}
                           onClick={() => handleRowClick(order.id)}
-                          className="cursor-pointer hover:bg-muted/50"
+                           className={`${activeTab === "PENDING" ? "cursor-pointer hover:bg-muted/50" : "cursor-default"}`}
                         >
                           <TableCell className="font-medium">
                             {order.orderId}

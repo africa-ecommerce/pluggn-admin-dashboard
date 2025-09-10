@@ -1,80 +1,101 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Loader2, MapPin, Phone, Package, CheckCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { addCheckedItem, removeCheckedItem, getAllCheckedItems, clearAllCheckedItems } from "@/lib/indexeddb"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, MapPin, Phone, Package, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  addCheckedItem,
+  removeCheckedItem,
+  getAllCheckedItems,
+  clearAllCheckedItems,
+} from "@/lib/indexeddb";
 
 interface OrderItem {
-  id: string
-  plugPrice: number
-  productColor: string | null
-  productId: string
-  productName: string
-  productSize: string | null
-  quantity: number
-  supplierPrice: number
-  variantColor: string | null
-  variantId: string | null
-  variantSize: string | null
+  id: string;
+  plugPrice: number;
+  productColor: string | null;
+  productId: string;
+  productName: string;
+  productSize: string | null;
+  quantity: number;
+  supplierPrice: number;
+  variantColor: string | null;
+  variantId: string | null;
+  variantSize: string | null;
 }
 
 interface SupplierOrder {
-  address: string
-  businessName: string
-  directions: string | null
-  lga: string
-  phone: string
-  state: string
-  supplierId: string
-  orderItems: OrderItem[]
+  address: string;
+  businessName: string;
+  directions: string | null;
+  lga: string;
+  phone: string;
+  state: string;
+  supplierId: string;
+  orderItems: OrderItem[];
 }
 
 interface OrderCollectionModalProps {
-  isOpen: boolean
-  onClose: () => void
-  supplierOrders: SupplierOrder[]
+  isOpen: boolean;
+  onClose: () => void;
+  supplierOrders: SupplierOrder[];
 }
 
-export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }: OrderCollectionModalProps) {
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { toast } = useToast()
+export default function OrderCollectionModal({
+  isOpen,
+  onClose,
+  supplierOrders,
+}: OrderCollectionModalProps) {
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   // Load checked items from IndexedDB on mount
   useEffect(() => {
     const loadCheckedItems = async () => {
-      if (!isOpen) return
+      if (!isOpen) return;
 
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const checkedItemsFromDB = await getAllCheckedItems()
-        const checkedKeys = new Set(checkedItemsFromDB.map((item) => item.key))
-        setCheckedItems(checkedKeys)
+        const checkedItemsFromDB = await getAllCheckedItems();
+        const checkedKeys = new Set(checkedItemsFromDB.map((item) => item.key));
+        setCheckedItems(checkedKeys);
       } catch (error) {
-        console.error("Error loading checked items:", error)
+        console.error("Error loading checked items:", error);
         toast({
           title: "Error",
           description: "Failed to load saved selections",
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadCheckedItems()
-  }, [isOpen, toast])
+    loadCheckedItems();
+  }, [isOpen, toast]);
 
-  const handleItemCheck = async (checked: boolean, item: OrderItem, supplierId: string) => {
-    const key = `${item.productId}-${supplierId}`
+  const handleItemCheck = async (
+    checked: boolean,
+    item: OrderItem,
+    supplierId: string
+  ) => {
+    const key = `${item.productId}-${
+      item.variantId || "no-variant"
+    }-${supplierId}`;
 
     try {
       if (checked) {
@@ -89,38 +110,40 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
           variantSize: item.variantSize,
           variantColor: item.variantColor,
           variantId: item.variantId,
-        })
-        setCheckedItems((prev) => new Set(prev).add(key))
+        });
+        setCheckedItems((prev) => new Set(prev).add(key));
       } else {
-        await removeCheckedItem(item.productId, supplierId)
+        await removeCheckedItem(item.productId, supplierId, item.variantId);
         setCheckedItems((prev) => {
-          const newSet = new Set(prev)
-          newSet.delete(key)
-          return newSet
-        })
+          const newSet = new Set(prev);
+          newSet.delete(key);
+          return newSet;
+        });
       }
     } catch (error) {
-      console.error("Error updating checked item:", error)
+      console.error("Error updating checked item:", error);
       toast({
         title: "Error",
         description: "Failed to update selection",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleDone = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      const allCheckedItems = await getAllCheckedItems()
+      const allCheckedItems = await getAllCheckedItems();
+
+      console.log("allCheckedItems", allCheckedItems)
 
       if (allCheckedItems.length === 0) {
         toast({
           title: "No Items Selected",
           description: "Please select at least one item to collect",
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
 
       const response = await fetch("/api/admin/order/collected", {
@@ -129,45 +152,45 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ items: allCheckedItems }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to submit collected items")
+        throw new Error("Failed to submit collected items");
       }
 
-      await clearAllCheckedItems()
-      setCheckedItems(new Set())
+      await clearAllCheckedItems();
+      setCheckedItems(new Set());
 
       toast({
         title: "Success",
         description: `${allCheckedItems.length} items marked as collected`,
-      })
+      });
 
-      onClose()
+      onClose();
     } catch (error) {
-      console.error("Error submitting collected items:", error)
+      console.error("Error submitting collected items:", error);
       toast({
         title: "Error",
         description: "Failed to submit collected items",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const formatItemDetails = (item: OrderItem) => {
-    const details = []
+    const details = [];
     if (item.productSize || item.variantSize) {
-      details.push(item.productSize || item.variantSize)
+      details.push(item.productSize || item.variantSize);
     }
     if (item.productColor || item.variantColor) {
-      details.push(item.productColor || item.variantColor)
+      details.push(item.productColor || item.variantColor);
     }
-    return details.length > 0 ? `(${details.join(", ")})` : ""
-  }
+    return details.length > 0 ? `(${details.join(", ")})` : "";
+  };
 
-  const getTotalCheckedItems = () => checkedItems.size
+  const getTotalCheckedItems = () => checkedItems.size;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -176,7 +199,11 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
             Order Collection Details
-            {getTotalCheckedItems() > 0 && <Badge variant="secondary">{getTotalCheckedItems()} items selected</Badge>}
+            {getTotalCheckedItems() > 0 && (
+              <Badge variant="secondary">
+                {getTotalCheckedItems()} items selected
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -190,7 +217,9 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
             {supplierOrders.map((supplier, index) => (
               <Card key={supplier.supplierId}>
                 <CardHeader>
-                  <CardTitle className="text-lg">{supplier.businessName}</CardTitle>
+                  <CardTitle className="text-lg">
+                    {supplier.businessName}
+                  </CardTitle>
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -199,7 +228,11 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
                         <div>
                           {supplier.lga}, {supplier.state}
                         </div>
-                        {supplier.directions && <div className="italic mt-1">Directions: {supplier.directions}</div>}
+                        {supplier.directions && (
+                          <div className="italic mt-1">
+                            Directions: {supplier.directions}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -212,8 +245,10 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
                   <div className="space-y-3">
                     <h4 className="font-medium">Order Items:</h4>
                     {supplier.orderItems.map((item) => {
-                      const itemKey = `${item.productId}-${supplier.supplierId}`
-                      const isChecked = checkedItems.has(itemKey)
+                      const itemKey = `${item.productId}-${
+                        item.variantId || "no-variant"
+                      }-${supplier.supplierId}`;
+                      const isChecked = checkedItems.has(itemKey);
 
                       return (
                         <div
@@ -222,19 +257,31 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
                         >
                           <Checkbox
                             checked={isChecked}
-                            onCheckedChange={(checked) => handleItemCheck(!!checked, item, supplier.supplierId)}
+                            onCheckedChange={(checked) =>
+                              handleItemCheck(
+                                !!checked,
+                                item,
+                                supplier.supplierId
+                              )
+                            }
                           />
                           <div className="flex-1">
                             <div className="font-medium">
                               {item.productName} {formatItemDetails(item)}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              Quantity: {item.quantity} • Supplier Price: ₦{item.supplierPrice.toLocaleString()}
+                              Quantity: {item.quantity} • Supplier Price: ₦
+                              {item.supplierPrice.toLocaleString()}
+                              {item.variantId && (
+                                <span> • Variant ID: {item.variantId}</span>
+                              )}
                             </div>
                           </div>
-                          {isChecked && <CheckCircle className="w-5 h-5 text-green-600" />}
+                          {isChecked && (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          )}
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </CardContent>
@@ -248,7 +295,10 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleDone} disabled={isSubmitting || getTotalCheckedItems() === 0}>
+          <Button
+            onClick={handleDone}
+            disabled={isSubmitting || getTotalCheckedItems() === 0}
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -264,5 +314,5 @@ export default function OrderCollectionModal({ isOpen, onClose, supplierOrders }
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

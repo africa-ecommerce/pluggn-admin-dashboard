@@ -42,7 +42,7 @@ export const addCheckedItem = async (item: Omit<CheckedItem, "key">): Promise<vo
   const transaction = db.transaction([STORE_NAME], "readwrite")
   const store = transaction.objectStore(STORE_NAME)
 
-  const key = `${item.productId}-${item.supplierId}`
+  const key = `${item.productId}-${item.variantId || "no-variant"}-${item.supplierId}`
   const checkedItem: CheckedItem = { ...item, key }
 
   return new Promise((resolve, reject) => {
@@ -53,12 +53,16 @@ export const addCheckedItem = async (item: Omit<CheckedItem, "key">): Promise<vo
 }
 
 // Remove item from IndexedDB
-export const removeCheckedItem = async (productId: string, supplierId: string): Promise<void> => {
+export const removeCheckedItem = async (
+  productId: string,
+  supplierId: string,
+  variantId?: string | null,
+): Promise<void> => {
   const db = await initDB()
   const transaction = db.transaction([STORE_NAME], "readwrite")
   const store = transaction.objectStore(STORE_NAME)
 
-  const key = `${productId}-${supplierId}`
+  const key = `${productId}-${variantId || "no-variant"}-${supplierId}`
 
   return new Promise((resolve, reject) => {
     const request = store.delete(key)
@@ -81,12 +85,16 @@ export const getAllCheckedItems = async (): Promise<CheckedItem[]> => {
 }
 
 // Check if item is checked
-export const isItemChecked = async (productId: string, supplierId: string): Promise<boolean> => {
+export const isItemChecked = async (
+  productId: string,
+  supplierId: string,
+  variantId?: string | null,
+): Promise<boolean> => {
   const db = await initDB()
   const transaction = db.transaction([STORE_NAME], "readonly")
   const store = transaction.objectStore(STORE_NAME)
 
-  const key = `${productId}-${supplierId}`
+  const key = `${productId}-${variantId || "no-variant"}-${supplierId}`
 
   return new Promise((resolve, reject) => {
     const request = store.get(key)
