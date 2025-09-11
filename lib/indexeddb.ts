@@ -1,6 +1,7 @@
 // IndexedDB utility functions for order collection
 interface CheckedItem {
   key: string
+  orderItemId: string
   productId: string
   supplierId: string
   productName: string

@@ -51,12 +51,14 @@ interface OrderCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   supplierOrders: SupplierOrder[];
+  orderId: string
 }
 
 export default function OrderCollectionModal({
   isOpen,
   onClose,
   supplierOrders,
+  orderId
 }: OrderCollectionModalProps) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +102,7 @@ export default function OrderCollectionModal({
     try {
       if (checked) {
         await addCheckedItem({
+          orderItemId: item.id,
           productId: item.productId,
           supplierId,
           productName: item.productName,
@@ -130,54 +133,108 @@ export default function OrderCollectionModal({
     }
   };
 
+  // const handleDone = async () => {
+  //   setIsSubmitting(true);
+  //   try {
+  //     const allCheckedItems = await getAllCheckedItems();
+
+  //     console.log("allCheckedItems", allCheckedItems)
+
+  //     if (allCheckedItems.length === 0) {
+  //       toast({
+  //         title: "No Items Selected",
+  //         description: "Please select at least one item to collect",
+  //         variant: "destructive",
+  //       });
+  //       return;
+  //     }
+
+  //     const response = await fetch(`/api/admin/order/received/${orderId}`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({ items: allCheckedItems }),
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error("Failed to submit collected items");
+  //     }
+
+  //     await clearAllCheckedItems();
+  //     setCheckedItems(new Set());
+
+  //     toast({
+  //       title: "Success",
+  //       description: `${allCheckedItems.length} items marked as collected`,
+  //     });
+
+  //     onClose();
+  //   } catch (error) {
+  //     console.error("Error submitting collected items:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: "Failed to submit collected items",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
   const handleDone = async () => {
-    setIsSubmitting(true);
-    try {
-      const allCheckedItems = await getAllCheckedItems();
+  setIsSubmitting(true);
+  try {
+    const allCheckedItems = await getAllCheckedItems();
 
-      console.log("allCheckedItems", allCheckedItems)
+    console.log("allCheckedItems", allCheckedItems);
 
-      if (allCheckedItems.length === 0) {
-        toast({
-          title: "No Items Selected",
-          description: "Please select at least one item to collect",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await fetch("/api/admin/order/collected", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ items: allCheckedItems }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to submit collected items");
-      }
-
-      await clearAllCheckedItems();
-      setCheckedItems(new Set());
-
+    if (allCheckedItems.length === 0) {
       toast({
-        title: "Success",
-        description: `${allCheckedItems.length} items marked as collected`,
-      });
-
-      onClose();
-    } catch (error) {
-      console.error("Error submitting collected items:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit collected items",
+        title: "No Items Selected",
+        description: "Please select at least one item to collect",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
-  };
+
+    // ✅ Extract just the orderItemId values
+    const orderItemIds = allCheckedItems.map((item) => item.orderItemId);
+
+    const response = await fetch(`/api/admin/order/received/${orderId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // ✅ Backend will now receive { orderItemIds: ["id1", "id2", ...] }
+      body: JSON.stringify({ orderItemIds }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to submit collected items");
+    }
+
+    await clearAllCheckedItems();
+    setCheckedItems(new Set());
+
+    toast({
+      title: "Success",
+      description: `${orderItemIds.length} items marked as collected`,
+    });
+
+    onClose();
+  } catch (error) {
+    console.error("Error submitting collected items:", error);
+    toast({
+      title: "Error",
+      description: "Failed to submit collected items",
+      variant: "destructive",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const formatItemDetails = (item: OrderItem) => {
     const details = [];
