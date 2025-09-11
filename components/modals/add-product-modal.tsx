@@ -1,6 +1,3 @@
-
-
-
 "use client";
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
@@ -31,29 +28,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn, truncateText } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { mutate } from "swr";
-import { useFormResolver } from "@/hooks/useFormResolver";
+
 import { type ProductFormData, productFormSchema } from "@/zod/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { PRODUCT_CATEGORIES, categoryRecommendations } from "@/app/constant";
+import { Badge } from "../ui/badge";
+import { ColorPicker } from "./color-picker";
+import { PREDEFINED_COLORS, type ColorOption } from "@/lib/colors";
 
-export const PRODUCT_CATEGORIES = [
-  { value: "all", label: "All Categories" },
-  { value: "footwears", label: "Footwears" },
-  { value: "bags", label: "Bags" },
-  { value: "accessories", label: "Accessories" },
-  { value: "curated_fashion", label: "Curated Fashion" },
-  { value: "home_decor", label: "Home Decor" },
-  { value: "beauty&_fragrance", label: "Beauty & Fragrance" },
-  { value: "fitness&_sports", label: "Fitness & Sports" },
-
-  { value: "books", label: "Books" },
-  { value: "toys&_games", label: "Toys & Games" },
-
-  { value: "pet_supplies", label: "Pet Supplies" },
-  { value: "art&_crafts", label: "Art & Crafts" },
-
-  { value: "baby_products", label: "Baby Products" },
-
-];
 
 interface Variation {
   id: string;
@@ -73,60 +56,79 @@ export function AddProductModal({
   supplierId: string;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [direction, setDirection] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropAreaRef = useRef<HTMLDivElement>(null);
 
+  const {
+    register,
+    handleSubmit: formSubmit, // Rename handleSubmit to formSubmit
+    formState: { errors },
+    watch,
+    setValue,
+    reset,
+    trigger,
+  } = useForm<ProductFormData>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+      description: "",
+      size: "",
+      price: 0,
+      stock: 0,
+      minPrice: 0, // Add this
+      maxPrice: 0, // Add this
+      colors: [],
+      hasVariations: false,
+      variations: [],
+      images: [],
+      imageUrls: [],
+    },
+  });
+
+  const formData = watch();
+
   const addProduct = async (data: ProductFormData) => {
     try {
+      setIsSubmitting(true);
       const formData = new FormData();
       data.images.forEach((file: File) => {
         formData.append("images", file);
       });
+
       const { images, imageUrls, ...jsonData } = data;
       formData.append("productData", JSON.stringify(jsonData));
 
       const response = await fetch(`/api/admin/product/${supplierId}`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {
         const errorResult = await response.json();
         console.error("Server error:", errorResult);
+
         return null;
       }
 
       const result = await response.json();
+
+      // Close modal and reset form on success
+      onOpenChange(false);
+      reset();
+      setCurrentStep(0);
+
       return result;
     } catch (error) {
       console.error("Submission error:", error);
       return null;
+    } finally {
+      setIsSubmitting(false);
     }
   };
-  
-
-  const {
-    form: { register, submit, errors, setValue, isSubmitting, watch },
-  } = useFormResolver<ProductFormData>(
-    addProduct,
-    productFormSchema,
-    () => {
-      onOpenChange(false);
-      setCurrentStep(0);
-      mutate("/api/products/supplier/");
-    },
-    {
-      hasVariations: false,
-      variations: [],
-      price: undefined,
-      stock: undefined,
-      minPrice: undefined,
-      maxPrice: undefined,
-    }
-  );
-
-  const formData = watch();
 
   // Handle drag and drop for images
   useEffect(() => {
@@ -149,6 +151,7 @@ export function AddProductModal({
       e.preventDefault();
       e.stopPropagation();
       dropArea.classList.remove("border-primary");
+
       if (e.dataTransfer?.files) {
         handleFiles(e.dataTransfer.files);
       }
@@ -163,6 +166,13 @@ export function AddProductModal({
       dropArea.removeEventListener("dragleave", handleDragLeave);
       dropArea.removeEventListener("drop", handleDrop);
     };
+  }, [open]);
+
+  // Reset step when modal closes
+  useEffect(() => {
+    if (!open) {
+      setCurrentStep(0);
+    }
   }, [open]);
 
   const handleFiles = (files: FileList) => {
@@ -216,19 +226,21 @@ export function AddProductModal({
     const newVariation = {
       id: `var-${Date.now()}`,
       size: "",
-      color: "",
+      colors: [],
       stock: "",
     };
+
     setValue("variations", [...(formData.variations || []), newVariation]);
   };
 
   const updateVariation = (
     index: number,
     field: string,
-    value: string | number
+    value: string | number | string[]
   ) => {
     const updatedVariations = [...(formData.variations || [])] as Variation[];
 
+    // Handle nested dimensions fields
     if (field.includes(".")) {
       const [parent, child] = field.split(".");
       if (parent === "dimensions") {
@@ -241,6 +253,7 @@ export function AddProductModal({
         };
       }
     } else if (field === "stock") {
+      // Special handling for stock field to handle empty string
       updatedVariations[index] = {
         ...updatedVariations[index],
         [field]: value === "" ? "" : Number(value),
@@ -258,16 +271,24 @@ export function AddProductModal({
   const removeVariation = (index: number) => {
     const updatedVariations = [...(formData.variations || [])];
     updatedVariations.splice(index, 1);
+
     setValue("variations", updatedVariations);
   };
 
+  // Updated step navigation logic
   const goToNextStep = () => {
     if (currentStep < steps.length - 1) {
       setDirection(1);
+
+      // If we're on the first step (category) and variations are enabled,
+      // go directly to variations step (step 1)
       if (currentStep === 0) {
         setCurrentStep(1);
-      } else if (currentStep === 1 && formData.hasVariations) {
-        setCurrentStep(3);
+      }
+      // If we're on variations step and variations are enabled,
+      // skip the single product details step
+      else if (currentStep === 1 && formData.hasVariations) {
+        setCurrentStep(3); // Skip to media step
       } else {
         setCurrentStep(currentStep + 1);
       }
@@ -277,6 +298,9 @@ export function AddProductModal({
   const goToPreviousStep = () => {
     if (currentStep > 0) {
       setDirection(-1);
+
+      // If we're on media step and variations are enabled,
+      // go back to variations step
       if (currentStep === 3 && formData.hasVariations) {
         setCurrentStep(1);
       } else {
@@ -310,7 +334,7 @@ export function AddProductModal({
 
   const isStepValid = () => {
     switch (currentStep) {
-      case 0:
+      case 0: // Category step
         return (
           !!formData.category &&
           !errors.category &&
@@ -318,13 +342,14 @@ export function AddProductModal({
           !errors.name &&
           !!formData.price &&
           !errors.price &&
-          !!formData.minPrice &&
-          !errors.minPrice &&
-          !!formData.maxPrice &&
-          !errors.maxPrice
+          !!formData.minPrice && // Add this
+          !errors.minPrice && // Add this
+          !!formData.maxPrice && // Add this
+          !errors.maxPrice // Add this
         );
-      case 1:
+      case 1: // Variations step
         if (formData.hasVariations) {
+          // Check if at least one variation exists and has required fields
           return (
             formData.variations &&
             formData.variations.length > 0 &&
@@ -334,15 +359,15 @@ export function AddProductModal({
             )
           );
         }
-        return true;
-      case 2:
+        return true; // If no variations, this step is valid
+      case 2: // Single product details
         return !errors.stock && formData.stock! >= 1;
-      case 3:
+      case 3: // Media step
         return (
           (formData.images?.length > 0 || formData.imageUrls?.length > 0) &&
           !errors.images
         );
-      case 4:
+      case 4: // Review step
         const baseValidation =
           !!formData.category &&
           !!formData.name &&
@@ -356,26 +381,31 @@ export function AddProductModal({
     }
   };
 
+  // Ensure we have valid data before submitting
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // If hasVariations is false, make sure variations is an empty array
     if (!formData.hasVariations) {
       setValue("variations", []);
     }
 
     if (formData.hasVariations) {
+      // When variations are enabled, reset single product fields
       setValue("size", "");
-      setValue("color", "");
+      setValue("colors", []);
       setValue("stock", undefined);
     }
 
+    // Force validation using the submit function from your form hook
     try {
-      await submit(e);
+      await formSubmit(addProduct)(formData);
     } catch (error) {
       console.error("Form submission error:", error);
     }
   };
 
+  // If modal is not open, render nothing but ensure hooks are called
   if (!open) return null;
 
   return (
@@ -388,7 +418,7 @@ export function AddProductModal({
         className="relative flex h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl bg-background shadow-xl md:h-[85vh] md:max-h-[700px] md:w-[95vw] md:max-w-2xl md:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header with swipe indicator for mobile */}
         <div className="sticky top-0 z-10 bg-background">
           <div className="flex items-center justify-between border-b px-4 py-3 md:px-6">
             <div className="flex items-center gap-2">
@@ -417,7 +447,7 @@ export function AddProductModal({
           </div>
         </div>
 
-        {/* Progress indicator */}
+        {/* Progress indicator - simplified for mobile */}
         <div className="sticky top-[60px] z-10 border-b bg-background px-4 py-2 md:px-6">
           <div className="relative flex items-center justify-between">
             <div className="absolute left-0 right-0 top-1/2 h-[2px] bg-muted">
@@ -454,7 +484,7 @@ export function AddProductModal({
           </p>
         </div>
 
-        {/* Form content */}
+        {/* Form content with swipe gestures */}
         <ScrollArea className="flex-1">
           <form onSubmit={handleSubmit}>
             <AnimatePresence initial={false} custom={direction} mode="wait">
@@ -468,7 +498,7 @@ export function AddProductModal({
                 transition={{ type: "tween", duration: 0.3 }}
                 className="h-full p-4 md:p-6"
               >
-                {/* Step 1: Category - Now includes price fields */}
+                {/* Step 1: Category - Now includes price field */}
                 {currentStep === 0 && (
                   <div className="space-y-6">
                     <div className="space-y-3">
@@ -538,100 +568,65 @@ export function AddProductModal({
                       </p>
                     </div>
 
-                    {/* Price fields section */}
-                    <div className="space-y-4">
+                    {/* Price field moved to first step */}
+                    <div className="space-y-3">
+                      <Label htmlFor="price">Price (₦) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        {...register("price", {
+                          valueAsNumber: true, // Convert to number automatically
+                        })}
+                        placeholder="0.00"
+                        className="h-12 text-base"
+                      />
+                      {errors.price && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.price.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 grid-cols-2">
                       <div className="space-y-3">
-                        <Label htmlFor="price">Base Price (₦) *</Label>
+                        <Label htmlFor="minPrice">Min Price (₦) *</Label>
                         <Input
-                          id="price"
+                          id="minPrice"
                           type="number"
                           min="0"
                           step="0.01"
-                          {...register("price", {
+                          {...register("minPrice", {
                             valueAsNumber: true,
                           })}
                           placeholder="0.00"
                           className="h-12 text-base"
                         />
-                        {errors.price && (
+                        {errors.minPrice && (
                           <p className="text-xs text-red-500 mt-1">
-                            {errors.price.message}
+                            {errors.minPrice.message}
                           </p>
                         )}
                       </div>
 
-                      {/* Price Range Section */}
-                      <div className="rounded-xl border bg-muted/30 p-4">
-                        <h3 className="mb-3 text-sm font-medium">
-                          Price Range (Optional)
-                        </h3>
-                        <p className="text-xs text-muted-foreground mb-4">
-                          Set a price range for products with variations or
-                          flexible pricing
-                        </p>
-
-                        <div className="grid gap-4 grid-cols-2">
-                          <div className="space-y-3">
-                            <Label htmlFor="minPrice">Min Price (₦)</Label>
-                            <Input
-                              id="minPrice"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              {...register("minPrice", {
-                                valueAsNumber: true,
-                              })}
-                              placeholder="0.00"
-                              className="h-12 text-base"
-                            />
-                            {errors.minPrice && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {errors.minPrice.message}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            <Label htmlFor="maxPrice">Max Price (₦)</Label>
-                            <Input
-                              id="maxPrice"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              {...register("maxPrice", {
-                                valueAsNumber: true,
-                              })}
-                              placeholder="0.00"
-                              className="h-12 text-base"
-                            />
-                            {errors.maxPrice && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {errors.maxPrice.message}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Price validation helper */}
-                        {formData.minPrice &&
-                          formData.maxPrice &&
-                          formData.minPrice > formData.maxPrice && (
-                            <p className="text-xs text-red-500 mt-2">
-                              Min price cannot be greater than max price
-                            </p>
-                          )}
-
-                        {(formData.minPrice || formData.maxPrice) && (
-                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <p className="text-xs text-blue-800 dark:text-blue-300">
-                              <strong>Price Display:</strong>{" "}
-                              {formData.minPrice && formData.maxPrice
-                                ? `₦${formData.minPrice} - ₦${formData.maxPrice}`
-                                : formData.minPrice
-                                ? `From ₦${formData.minPrice}`
-                                : `Up to ₦${formData.maxPrice}`}
-                            </p>
-                          </div>
+                      <div className="space-y-3">
+                        <Label htmlFor="maxPrice">Max Price (₦) *</Label>
+                        <Input
+                          id="maxPrice"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          {...register("maxPrice", {
+                            valueAsNumber: true,
+                          })}
+                          placeholder="0.00"
+                          className="h-12 text-base"
+                        />
+                        {errors.maxPrice && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.maxPrice.message}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -639,7 +634,9 @@ export function AddProductModal({
                     <div className="space-y-3">
                       <Label htmlFor="description">
                         Description{" "}
-                        <span className="text-gray-500">(Recommended)</span>
+                        <span className="text-gray-500">
+                          (Strongly Recommended)
+                        </span>
                       </Label>
                       <div className="relative">
                         <Textarea
@@ -649,6 +646,7 @@ export function AddProductModal({
                           className="min-h-[120px] text-base"
                           maxLength={1000}
                         />
+                        {/* Character counter */}
                         <div className="absolute bottom-2 right-2 text-sm text-muted-foreground">
                           {formData.description?.length || 0}/1000
                         </div>
@@ -662,7 +660,7 @@ export function AddProductModal({
                   </div>
                 )}
 
-                {/* Step 2: Variations */}
+                {/* Step 2: Variations - Enhanced with sticky Add button */}
                 {currentStep === 1 && (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between rounded-lg bg-muted/30 p-4">
@@ -683,7 +681,7 @@ export function AddProductModal({
                           variant="outline"
                           size="sm"
                           onClick={addVariation}
-                          className="h-9 bg-transparent"
+                          className="h-9"
                           type="button"
                         >
                           <Plus className="mr-1 h-4 w-4" /> Add
@@ -691,6 +689,7 @@ export function AddProductModal({
                       )}
                     </div>
 
+                    {/* Remove the sticky button section and keep the original structure */}
                     {!formData.hasVariations ? (
                       <div className="rounded-xl border bg-muted/30 p-4 text-center">
                         <p className="text-muted-foreground">
@@ -714,101 +713,113 @@ export function AddProductModal({
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {formData.variations?.map(
-                          (variation: Variation, index) => (
-                            <div
-                              key={variation.id}
-                              className="rounded-xl border bg-muted/30 p-4"
-                            >
-                              <div className="mb-4 flex items-center justify-between">
-                                <h3 className="font-medium">
-                                  Variation {index + 1}
-                                </h3>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeVariation(index)}
-                                  className="text-destructive hover:text-destructive/80"
-                                  type="button"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </Button>
-                              </div>
-                              <div className="grid gap-4 grid-cols-2">
-                                <div className="space-y-3 pb-4">
-                                  <Label htmlFor={`size-${index}`}>
-                                    Size *
+                      <div className="relative">
+                        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b pb-4 mb-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={addVariation}
+                            className="h-9 w-full"
+                            type="button"
+                          >
+                            <Plus className="mr-1 h-4 w-4" /> Add Variation
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {formData.variations?.map(
+                            (variation: Variation, index) => (
+                              <div
+                                key={variation.id}
+                                className="rounded-xl border bg-muted/30 p-4"
+                              >
+                                <div className="mb-4 flex items-center justify-between">
+                                  <h3 className="font-medium">
+                                    Variation {index + 1}
+                                  </h3>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeVariation(index)}
+                                    className="text-destructive hover:text-destructive/80"
+                                    type="button"
+                                  >
+                                    <Trash2 className="h-5 w-5" />
+                                  </Button>
+                                </div>
+
+                                <div className="grid gap-4 grid-cols-2">
+                                  <div className="space-y-3 pb-4">
+                                    <Label htmlFor={`size-${index}`}>
+                                      Size *
+                                    </Label>
+                                    <Input
+                                      id={`size-${index}`}
+                                      placeholder="e.g. XL, 250ml, 32 inches"
+                                      value={variation.size || ""}
+                                      onChange={(e) =>
+                                        updateVariation(
+                                          index,
+                                          "size",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="h-12 text-base"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-3 pb-4">
+                                    <Label htmlFor={`color-${index}`}>
+                                      Colors *
+                                    </Label>
+                                    <ColorPicker
+                                      selectedColors={variation.colors || []}
+                                      onColorsChange={(colors) =>
+                                        updateVariation(index, "colors", colors)
+                                      }
+                                      placeholder="Select colors..."
+                                      className="z-[110]"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <Label htmlFor={`stock-${index}`}>
+                                    Stock *
                                   </Label>
                                   <Input
-                                    id={`size-${index}`}
-                                    placeholder="e.g. XL, 250ml, 32 inches"
-                                    value={variation.size || ""}
-                                    onChange={(e) =>
-                                      updateVariation(
-                                        index,
-                                        "size",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="h-12 text-base"
-                                  />
-                                </div>
-                                <div className="space-y-3 pb-4">
-                                  <Label htmlFor={`color-${index}`}>
-                                    Color *
-                                  </Label>
-                                  <Input
-                                    id={`color-${index}`}
-                                    placeholder="e.g. Red"
-                                    value={variation.color || ""}
-                                    onChange={(e) =>
-                                      updateVariation(
-                                        index,
-                                        "color",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="h-12 text-base"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-3">
-                                <Label htmlFor={`stock-${index}`}>
-                                  Stock *
-                                </Label>
-                                <Input
-                                  id={`stock-${index}`}
-                                  type="number"
-                                  placeholder="1"
-                                  value={
-                                    variation.stock === undefined
-                                      ? ""
-                                      : variation.stock
-                                  }
-                                  onChange={(e) =>
-                                    updateVariation(
-                                      index,
-                                      "stock",
-                                      e.target.value === ""
+                                    id={`stock-${index}`}
+                                    type="number"
+                                    placeholder="1"
+                                    value={
+                                      variation.stock === undefined
                                         ? ""
-                                        : Number(e.target.value)
-                                    )
-                                  }
-                                  className="h-12 text-base"
-                                  required
-                                />
-                                {variation.stock !== "" &&
-                                  variation.stock !== undefined &&
-                                  Number(variation.stock) < 1 && (
-                                    <p className="text-xs text-red-500">
-                                      Stock must be at least 1
-                                    </p>
-                                  )}
+                                        : variation.stock
+                                    }
+                                    onChange={(e) =>
+                                      updateVariation(
+                                        index,
+                                        "stock",
+                                        e.target.value === ""
+                                          ? ""
+                                          : Number(e.target.value)
+                                      )
+                                    }
+                                    className="h-12 text-base"
+                                    required
+                                  />
+                                  {variation.stock !== "" &&
+                                    variation.stock !== undefined &&
+                                    Number(variation.stock) < 1 && (
+                                      <p className="text-xs text-red-500">
+                                        Stock must be at least 1
+                                      </p>
+                                    )}
+                                </div>
                               </div>
-                            </div>
-                          )
-                        )}
+                            )
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -840,7 +851,6 @@ export function AddProductModal({
                         not using variations.
                       </p>
                     </div>
-
                     <div className="grid gap-4 grid-cols-2">
                       <div className="space-y-3">
                         <Label htmlFor="size">Size</Label>
@@ -856,14 +866,16 @@ export function AddProductModal({
                           </p>
                         )}
                       </div>
+
                       <div className="space-y-3">
-                        <Label htmlFor="color">Color</Label>
-                        <Input
-                          id="color"
-                          type="text"
-                          {...register("color")}
-                          placeholder="e.g. Red"
-                          className="h-12 text-base"
+                        <Label htmlFor="color">Colors</Label>
+                        <ColorPicker
+                          selectedColors={formData.colors || []}
+                          onColorsChange={(colors) =>
+                            setValue("colors", colors)
+                          }
+                          placeholder="Select colors..."
+                          className="z-[110]"
                         />
                       </div>
                     </div>
@@ -905,7 +917,6 @@ export function AddProductModal({
                           </p>
                         </div>
                       </div>
-
                       <div
                         ref={dropAreaRef}
                         className="flex min-h-[200px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center transition-colors hover:border-primary hover:bg-muted/50"
@@ -1018,6 +1029,16 @@ export function AddProductModal({
                               {formData.category || "-"}
                             </p>
                           </div>
+
+                          <div>
+                            <p className="text-sm text-muted-foreground">
+                              Price Range
+                            </p>
+                            <p className="font-medium">
+                              ₦{formData.minPrice || "0.00"} - ₦
+                              {formData.maxPrice || "0.00"}
+                            </p>
+                          </div>
                           <div>
                             <p className="text-sm text-muted-foreground">
                               Base Price
@@ -1026,20 +1047,6 @@ export function AddProductModal({
                               ₦{formData.price || "0.00"}
                             </p>
                           </div>
-                          {(formData.minPrice || formData.maxPrice) && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">
-                                Price Range
-                              </p>
-                              <p className="font-medium">
-                                {formData.minPrice && formData.maxPrice
-                                  ? `₦${formData.minPrice} - ₦${formData.maxPrice}`
-                                  : formData.minPrice
-                                  ? `From ₦${formData.minPrice}`
-                                  : `Up to ₦${formData.maxPrice}`}
-                              </p>
-                            </div>
-                          )}
                           <div className="col-span-2 w-full">
                             <div className="rounded-xl border bg-muted/30 w-full p-5">
                               <h4 className="mb-3 text-sm font-medium">
@@ -1072,17 +1079,41 @@ export function AddProductModal({
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">
-                                Color
+                                Colors
                               </p>
-                              <p className="font-medium capitalize ">
-                                {formData.color || "-"}
-                              </p>
+                              {formData.colors && formData.colors.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {formData.colors.map((colorValue) => {
+                                    const color = PREDEFINED_COLORS.find(
+                                      (c) => c.value === colorValue
+                                    );
+                                    return (
+                                      <Badge
+                                        key={colorValue}
+                                        variant="secondary"
+                                        className="flex items-center gap-1 text-xs"
+                                      >
+                                        <div
+                                          className="h-2 w-2 rounded-full border border-gray-300"
+                                          style={{
+                                            backgroundColor:
+                                              color?.hex || "#gray",
+                                          }}
+                                        />
+                                        {color?.name || colorValue}
+                                      </Badge>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="font-medium">-</p>
+                              )}
                             </div>
                             <div>
                               <p className="text-sm text-muted-foreground">
                                 Size
                               </p>
-                              <p className="font-medium capitalize ">
+                              <p className="font-medium capitalize">
                                 {formData.size || "-"}
                               </p>
                             </div>
@@ -1109,8 +1140,12 @@ export function AddProductModal({
                                           Variation
                                         </p>
                                         <p className="font-medium capitalize">
-                                          {variation.size || variation.color
-                                            ? [variation.size, variation.color]
+                                          {variation.size ||
+                                          variation.colors?.length
+                                            ? [
+                                                variation.size,
+                                                variation.colors?.join(", "),
+                                              ]
                                                 .filter(Boolean)
                                                 .join(" / ")
                                             : `Variation ${index + 1}`}
@@ -1120,7 +1155,7 @@ export function AddProductModal({
                                         <p className="text-sm text-muted-foreground">
                                           Stock
                                         </p>
-                                        <p className="font-medium capitalize">
+                                        <p className="font-medium">
                                           {variation.stock}
                                         </p>
                                       </div>
@@ -1128,9 +1163,46 @@ export function AddProductModal({
                                         <p className="text-sm text-muted-foreground">
                                           Size
                                         </p>
-                                        <p className="font-medium capitalize ">
+                                        <p className="font-medium capitalize">
                                           {variation.size || "-"}
                                         </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm text-muted-foreground">
+                                          Colors
+                                        </p>
+                                        {variation.colors &&
+                                        variation.colors.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {variation.colors.map(
+                                              (colorValue) => {
+                                                const color =
+                                                  PREDEFINED_COLORS.find(
+                                                    (c) =>
+                                                      c.value === colorValue
+                                                  );
+                                                return (
+                                                  <Badge
+                                                    key={colorValue}
+                                                    variant="secondary"
+                                                    className="flex items-center gap-1 text-xs"
+                                                  >
+                                                    <div
+                                                      className="h-2 w-2 rounded-full border border-gray-300"
+                                                      style={{
+                                                        backgroundColor:
+                                                          color?.hex || "#gray",
+                                                      }}
+                                                    />
+                                                    {color?.name || colorValue}
+                                                  </Badge>
+                                                );
+                                              }
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <p className="font-medium">-</p>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1169,7 +1241,7 @@ export function AddProductModal({
           </form>
         </ScrollArea>
 
-        {/* Footer */}
+        {/* Footer with floating action on mobile */}
         <div className="sticky bottom-0 border-t bg-background/95 p-4 backdrop-blur-sm md:p-6">
           <div className="flex items-center justify-between gap-3">
             <Button
@@ -1193,19 +1265,12 @@ export function AddProductModal({
                 </Button>
               ) : (
                 <Button
-                  onClick={(e) => handleSubmit(e)}
-                  disabled={isSubmitting || !isStepValid()}
+                  onClick={handleSubmit}
+                  disabled={!isStepValid() || isSubmitting}
                   className="flex-1 md:flex-none"
                   type="button"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Add Product"
-                  )}
+                  {isSubmitting ? "Adding Product..." : "Add Product"}
                 </Button>
               )}
             </div>
@@ -1215,56 +1280,3 @@ export function AddProductModal({
     </div>
   );
 }
-
-const categoryRecommendations = {
-  skincare: [
-    "Include skin type compatibility",
-    "List key ingredients",
-    "Specify product volume/weight",
-  ],
-  haircare: [
-    "Include hair type compatibility",
-    "List key ingredients",
-    "Specify product volume",
-  ],
-  bodycare: [
-    "Include product volume/weight",
-    "List key ingredients",
-    "Specify usage instructions",
-  ],
-  makeup: [
-    "Include shades/variants",
-    "List key ingredients",
-    "Specify product weight",
-  ],
-  fragrance: [
-    "Include scent notes",
-    "Specify bottle size",
-    "Indicate concentration",
-  ],
-  accessories: [
-    "Include dimensions",
-    "Specify materials used",
-    "Add color variations",
-  ],
-  electronics: [
-    "Include technical specifications",
-    "List compatible devices",
-    "Specify warranty information",
-  ],
-  fashion: [
-    "Include size guide",
-    "Specify fabric/material",
-    "Add care instructions",
-  ],
-  beauty_skincare: [
-    "Include skin type compatibility",
-    "List key ingredients",
-    "Specify product volume/weight",
-  ],
-  all: [
-    "Include detailed description",
-    "Add high-quality images",
-    "Specify product dimensions",
-  ],
-};

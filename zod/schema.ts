@@ -7,6 +7,9 @@ const variationSchema = z.object({
   stock: z.number().or(z.string()).optional(),
 });
   
+
+
+  // Main product schema with improved validation
 export const productFormSchema = z
   .object({
     name: z.string().min(1, "Name is required").max(100),
@@ -15,7 +18,7 @@ export const productFormSchema = z
     size: z.string().optional(),
     price: z.number().min(1, "Price is required"),
     stock: z.number().optional(),
-    color: z.string().optional(),
+    colors: z.array(z.string()).optional(),
     hasVariations: z.boolean(),
     variations: z.array(variationSchema),
     images: z.array(z.instanceof(File)),
@@ -25,17 +28,26 @@ export const productFormSchema = z
   })
   .refine(
     (data) => {
-      // Validate that minPrice is not greater than maxPrice
-      if (data.minPrice && data.maxPrice) {
-        return data.minPrice <= data.maxPrice;
+     
+      if (data.hasVariations) {
+        return data.variations.length > 0;
       }
       return true;
     },
     {
-      message: "Min price cannot be greater than max price",
-      path: ["minPrice"],
+      message: "At least one variation is required when variations are enabled",
+      path: ["variations"],
+      
     }
-  );
+  ).refine ((data) => {
+    if (data.minPrice && data.maxPrice) {
+        return data.minPrice <= data.maxPrice;
+      }
+    return true
+  }, {
+     message: "Min price cannot be greater than max price",
+      path: ["minPrice"],
+  })
 
 
 export const updateProductFormSchema = z
@@ -46,7 +58,7 @@ export const updateProductFormSchema = z
     size: z.string().optional(),
     price: z.number().min(1, "Price is required"),
     stock: z.number().optional(),
-    color: z.string().optional(),
+    colors: z.array(z.string()).optional(),
     hasVariations: z.boolean(),
     variations: z.array(variationSchema),
     images: z.array(z.instanceof(File)).optional(),
@@ -56,17 +68,27 @@ export const updateProductFormSchema = z
   })
   .refine(
     (data) => {
-      // Validate that minPrice is not greater than maxPrice
-      if (data.minPrice && data.maxPrice) {
-        return data.minPrice <= data.maxPrice;
+     
+      if (data.hasVariations) {
+        return data.variations.length > 0;
       }
       return true;
     },
     {
-      message: "Min price cannot be greater than max price",
-      path: ["minPrice"],
+      message: "At least one variation is required when variations are enabled",
+      path: ["variations"],
+      
     }
-  );
+  ).refine ((data) => {
+    if (data.minPrice && data.maxPrice) {
+        return data.minPrice <= data.maxPrice;
+      }
+    return true
+  }, {
+     message: "Min price cannot be greater than max price",
+      path: ["minPrice"],
+  })
+
 
 
 export type UpdateFormData = z.infer<typeof updateProductFormSchema>;
