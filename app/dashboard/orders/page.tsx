@@ -602,9 +602,13 @@ const updateOrderStatus = async (
   return response.json();
 };
 
+
+
+
+
 // Function to cancel order
 const cancelOrder = async (orderId: string): Promise<void> => {
-  const response = await fetch("/api/admin/order/cancelled", {
+  const response = await fetch("/api/admin/order/cancel", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
