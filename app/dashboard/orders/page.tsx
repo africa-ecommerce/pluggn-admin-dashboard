@@ -882,7 +882,7 @@ export default function OrdersPage() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="PENDING" className="flex items-center gap-2">
             <Package className="w-4 h-4" />
-            Pending
+           
           </TabsTrigger>
           <TabsTrigger value="SHIPPED" className="flex items-center gap-2">
             <Truck className="w-4 h-4" />
@@ -899,7 +899,9 @@ export default function OrdersPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {getStatusBadge(activeTab)}
-                Orders ({orders.length})
+                Orders ({orders.length}) 
+                {activeTab === "PENDING" && (<> Remember to click to register a suppliers product before moving to shipped</>)}
+                {activeTab === "DELIVERED" && (<> Click to pause, unpause and return an order item</>)}
                 {(isLoading || loadingOrderDetails) && (
                   <Loader2 className="w-4 h-4 animate-spin ml-2" />
                 )}
