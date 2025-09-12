@@ -133,7 +133,7 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
       if (response.ok) {
         const data = await response.json()
         console.log("pausedItems", data)
-        setPausedItems(data.pausedItems || [])
+        setPausedItems(data || [])
       }
     } catch (error) {
       console.error("Error fetching paused items:", error)
