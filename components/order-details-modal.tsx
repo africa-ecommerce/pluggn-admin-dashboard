@@ -1,241 +1,297 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Loader2, Pause, Play, RotateCcw, User, MapPin, Phone, Mail } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import ConfirmationModal from "./confirmation-modal"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import ConfirmationModal from "./confirmation-modal";
 
 interface OrderItem {
-  id: string
-  plugPrice: number
-  productColor: string | null
-  productId: string
-  productName: string
-  productSize: string | null
-  quantity: number
-  supplierPrice: number
-  variantColor: string | null
-  variantId: string | null
-  variantSize: string | null
+  id: string;
+  plugPrice: number;
+  productColor: string | null;
+  productId: string;
+  productName: string;
+  productSize: string | null;
+  quantity: number;
+  supplierPrice: number;
+  variantColor: string | null;
+  variantId: string | null;
+  variantSize: string | null;
 }
 
 interface Supplier {
-  address: string
-  businessName: string
-  directions: string | null
-  lga: string
-  phone: string
-  state: string
-  supplierId: string
-  orderItems: OrderItem[]
+  address: string;
+  businessName: string;
+  directions: string | null;
+  lga: string;
+  phone: string;
+  state: string;
+  supplierId: string;
+  orderItems: OrderItem[];
 }
 
 interface OrderDetails {
   buyer: {
-    name: string
-    email: string
-    phone: string
-    address: string
-    state: string
-  }
-  createdAt: string
-  deliveryFee: number
-  deliveryType: "home" | "terminal"
-  orderId: string
-  orderNumber: string
-  status: string
-  suppliers: Supplier[]
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    state: string;
+  };
+  createdAt: string;
+  deliveryFee: number;
+  deliveryType: "home" | "terminal";
+  orderId: string;
+  orderNumber: string;
+  status: string;
+  suppliers: Supplier[];
 }
 
 interface OrderDetailsModalProps {
-  isOpen: boolean
-  onClose: () => void
-  orderId: string | null
+  isOpen: boolean;
+  onClose: () => void;
+  orderId: string | null;
 }
 
 interface PausedItem {
-  orderItemId: string
-  quantity: number
+  orderItemId: string;
+  quantity: number;
 }
 
-export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDetailsModalProps) {
-  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [pausedItems, setPausedItems] = useState<PausedItem[]>([])
-  const [loadingPaused, setLoadingPaused] = useState(false)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [quantities, setQuantities] = useState<Record<string, number>>({})
+interface ReturnedItem {
+  orderItemId: string;
+  quantity: number;
+}
+
+export default function OrderDetailsModal({
+  isOpen,
+  onClose,
+  orderId,
+}: OrderDetailsModalProps) {
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pausedItems, setPausedItems] = useState<PausedItem[]>([]);
+  const [loadingPaused, setLoadingPaused] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loadingReturn, setLoadingReturn] = useState(false);
+  const [returnedItems, setReturnedItems] = useState<ReturnedItem[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean
-    title: string
-    description: string
-    action: () => Promise<void>
-    variant?: "default" | "destructive"
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: () => Promise<void>;
+    variant?: "default" | "destructive";
   }>({
     isOpen: false,
     title: "",
     description: "",
     action: async () => {},
-  })
-  const { toast } = useToast()
+  });
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && orderId) {
-      fetchOrderDetails()
-      fetchPausedItems()
+      fetchOrderDetails();
+      fetchPausedItems();
+      fetchReturnedItems();
     }
-  }, [isOpen, orderId])
+  }, [isOpen, orderId]);
 
   const fetchOrderDetails = async () => {
-    if (!orderId) return
+    if (!orderId) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const response = await fetch(`/api/admin/order/${orderId}`)
-      if (!response.ok) throw new Error("Failed to fetch order details")
+      const response = await fetch(`/api/admin/order/${orderId}`);
+      if (!response.ok) throw new Error("Failed to fetch order details");
 
-      const data = await response.json()
-      setOrderDetails(data)
+      const data = await response.json();
+      setOrderDetails(data);
 
       // Initialize quantities for all items
-      const initialQuantities: Record<string, number> = {}
+      const initialQuantities: Record<string, number> = {};
       data.suppliers?.forEach((supplier: Supplier) => {
         supplier.orderItems.forEach((item: OrderItem) => {
-          initialQuantities[item.id] = 1
-        })
-      })
-      setQuantities(initialQuantities)
+          initialQuantities[item.id] = 1;
+        });
+      });
+      setQuantities(initialQuantities);
     } catch (error) {
-      console.error("Error fetching order details:", error)
+      console.error("Error fetching order details:", error);
       toast({
         title: "Error",
         description: "Failed to fetch order details",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchPausedItems = async () => {
-    if (!orderId) return
+    if (!orderId) return;
 
-    setLoadingPaused(true)
+    setLoadingPaused(true);
     try {
-      const response = await fetch(`/api/admin/order/paused/${orderId}`)
+      const response = await fetch(`/api/admin/order/paused/${orderId}`);
       if (response.ok) {
-        const data = await response.json()
-        setPausedItems(data.data || [])
+        const data = await response.json();
+        setPausedItems(data.data || []);
       }
     } catch (error) {
-      console.error("Error fetching paused items:", error)
+      console.error("Error fetching paused items:", error);
     } finally {
-      setLoadingPaused(false)
+      setLoadingPaused(false);
     }
-  }
+  };
+
+  const fetchReturnedItems = async () => {
+    if (!orderId) return;
+
+    setLoadingReturn(true);
+    try {
+      const response = await fetch(`/api/admin/order/returned/${orderId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setReturnedItems(data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching returned items:", error);
+    } finally {
+      setLoadingReturn(false);
+    }
+  };
 
   const isItemPaused = (itemId: string) => {
-    return pausedItems.some((item) => item.orderItemId === itemId)
-  }
+    return pausedItems.some((item) => item.orderItemId === itemId);
+  };
+
+  const isReturned = (itemId: string) => {
+    return returnedItems.some((item) => item.orderItemId === itemId);
+  };
 
   const handlePauseToggle = async (itemId: string, maxQuantity: number) => {
-    const isPaused = isItemPaused(itemId)
-    const quantity = quantities[itemId] || 1
+    const isPaused = isItemPaused(itemId);
+    const quantity = quantities[itemId] || 1;
 
     if (quantity > maxQuantity) {
       toast({
         title: "Invalid Quantity",
         description: `Quantity cannot exceed ${maxQuantity}`,
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     const action = async () => {
-      setActionLoading(itemId)
+      setActionLoading(itemId);
       try {
-        const endpoint = isPaused ? "/api/admin/order/unpause" : "/api/admin/order/pause"
+        const endpoint = isPaused
+          ? "/api/admin/order/unpause"
+          : "/api/admin/order/pause";
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderItemId: itemId, quantity }),
-        })
+        });
 
-        if (!response.ok) throw new Error(`Failed to ${isPaused ? "unpause" : "pause"} item`)
+        if (!response.ok)
+          throw new Error(`Failed to ${isPaused ? "unpause" : "pause"} item`);
 
-        await fetchPausedItems() // Refresh paused items
+        await fetchPausedItems(); // Refresh paused items
         toast({
           title: "Success",
           description: `Item ${isPaused ? "unpaused" : "paused"} successfully`,
-        })
+        });
       } catch (error) {
-        console.error(`Error ${isPaused ? "unpausing" : "pausing"} item:`, error)
+        console.error(
+          `Error ${isPaused ? "unpausing" : "pausing"} item:`,
+          error
+        );
         toast({
           title: "Error",
           description: `Failed to ${isPaused ? "unpause" : "pause"} item`,
           variant: "destructive",
-        })
+        });
       } finally {
-        setActionLoading(null)
+        setActionLoading(null);
       }
-    }
+    };
 
     setConfirmModal({
       isOpen: true,
       title: `${isPaused ? "Unpause" : "Pause"} Item`,
-      description: `Are you sure you want to ${isPaused ? "unpause" : "pause"} ${quantity} unit(s) of this item?`,
+      description: `Are you sure you want to ${
+        isPaused ? "unpause" : "pause"
+      } ${quantity} unit(s) of this item?`,
       action,
-    })
-  }
+    });
+  };
 
   const handleReturn = async (itemId: string, maxQuantity: number) => {
-    const quantity = quantities[itemId] || 1
+    const quantity = quantities[itemId] || 1;
 
     if (quantity > maxQuantity) {
       toast({
         title: "Invalid Quantity",
         description: `Quantity cannot exceed ${maxQuantity}`,
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     const action = async () => {
-      setActionLoading(itemId)
+      setActionLoading(itemId);
       try {
         const response = await fetch("/api/admin/order/return", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderItemId: itemId, quantity }),
-        })
+        });
 
-        if (!response.ok) throw new Error("Failed to return item")
+        if (!response.ok) throw new Error("Failed to return item");
+        await fetchReturnedItems()
 
         toast({
           title: "Success",
           description: "Item returned successfully",
-        })
+        });
 
         // Refresh order details
-        await fetchOrderDetails()
+        await fetchOrderDetails();
       } catch (error) {
-        console.error("Error returning item:", error)
+        console.error("Error returning item:", error);
         toast({
           title: "Error",
           description: "Failed to return item",
           variant: "destructive",
-        })
+        });
       } finally {
-        setActionLoading(null)
+        setActionLoading(null);
       }
-    }
+    };
 
     setConfirmModal({
       isOpen: true,
@@ -243,8 +299,8 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
       description: `Are you sure you want to return ${quantity} unit(s) of this item?`,
       action,
       variant: "destructive",
-    })
-  }
+    });
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -253,10 +309,10 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <>
@@ -265,7 +321,9 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               Order Details - {orderDetails?.orderNumber || orderId}
-              {(loading || loadingPaused) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {(loading || loadingPaused || loadingReturn) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -288,15 +346,21 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">{orderDetails.buyer.name}</span>
+                      <span className="font-medium">
+                        {orderDetails.buyer.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{orderDetails.buyer.email}</span>
+                      <span className="text-sm">
+                        {orderDetails.buyer.email}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{orderDetails.buyer.phone}</span>
+                      <span className="text-sm">
+                        {orderDetails.buyer.phone}
+                      </span>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -304,13 +368,17 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                       <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                       <div className="text-sm">
                         <div>{orderDetails.buyer.address}</div>
-                        <div className="text-muted-foreground">{orderDetails.buyer.state}</div>
+                        <div className="text-muted-foreground">
+                          {orderDetails.buyer.state}
+                        </div>
                       </div>
                     </div>
                     <div className="text-sm">
                       <span className="font-medium">Delivery: </span>
                       <Badge variant="outline">
-                        {orderDetails.deliveryType === "home" ? "Home Delivery" : "Terminal Pickup"}
+                        {orderDetails.deliveryType === "home"
+                          ? "Home Delivery"
+                          : "Terminal Pickup"}
                       </Badge>
                     </div>
                     <div className="text-sm">
@@ -327,7 +395,9 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                 {orderDetails.suppliers.map((supplier, supplierIndex) => (
                   <Card key={supplier.supplierId}>
                     <CardHeader>
-                      <CardTitle className="text-base">{supplier.businessName}</CardTitle>
+                      <CardTitle className="text-base">
+                        {supplier.businessName}
+                      </CardTitle>
                       <div className="text-sm text-muted-foreground">
                         {supplier.address}, {supplier.lga}, {supplier.state}
                       </div>
@@ -338,13 +408,26 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                           <div key={item.id} className="border rounded-lg p-4">
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                               <div className="flex-1">
-                                <h4 className="font-medium">{item.productName}</h4>
+                                <h4 className="font-medium">
+                                  {item.productName}
+                                </h4>
                                 <div className="text-sm text-muted-foreground space-y-1">
-                                  {item.productSize && <div>Size: {item.productSize}</div>}
-                                  {item.productColor && <div>Color: {item.productColor}</div>}
+                                  {item.productSize && (
+                                    <div>Size: {item.productSize}</div>
+                                  )}
+                                  {item.productColor && (
+                                    <div>Color: {item.productColor}</div>
+                                  )}
                                   <div>Quantity: {item.quantity}</div>
-                                  <div>Price: ₦{item.plugPrice.toLocaleString()}</div>
-                                  <div>Total: ₦{(item.plugPrice * item.quantity).toLocaleString()}</div>
+                                  <div>
+                                    Price: ₦{item.plugPrice.toLocaleString()}
+                                  </div>
+                                  <div>
+                                    Total: ₦
+                                    {(
+                                      item.plugPrice * item.quantity
+                                    ).toLocaleString()}
+                                  </div>
                                 </div>
                                 {isItemPaused(item.id) && (
                                   <Badge variant="secondary" className="mt-2">
@@ -355,7 +438,10 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
 
                               <div className="flex flex-col gap-3 min-w-[200px]">
                                 <div className="flex items-center gap-2">
-                                  <Label htmlFor={`quantity-${item.id}`} className="text-xs">
+                                  <Label
+                                    htmlFor={`quantity-${item.id}`}
+                                    className="text-xs"
+                                  >
                                     Qty:
                                   </Label>
                                   <Input
@@ -367,7 +453,8 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                                     onChange={(e) =>
                                       setQuantities((prev) => ({
                                         ...prev,
-                                        [item.id]: Number.parseInt(e.target.value) || 1,
+                                        [item.id]:
+                                          Number.parseInt(e.target.value) || 1,
                                       }))
                                     }
                                     className="w-16 h-8 text-xs"
@@ -378,7 +465,9 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handlePauseToggle(item.id, item.quantity)}
+                                    onClick={() =>
+                                      handlePauseToggle(item.id, item.quantity)
+                                    }
                                     disabled={actionLoading === item.id}
                                     className="flex-1"
                                   >
@@ -389,23 +478,35 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
                                     ) : (
                                       <Pause className="w-3 h-3" />
                                     )}
-                                    <span className="ml-1 text-xs">{isItemPaused(item.id) ? "Unpause" : "Pause"}</span>
+                                    <span className="ml-1 text-xs">
+                                      {isItemPaused(item.id)
+                                        ? "Unpause"
+                                        : "Pause"}
+                                    </span>
                                   </Button>
 
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleReturn(item.id, item.quantity)}
-                                    disabled={actionLoading === item.id}
-                                    className="flex-1"
-                                  >
-                                    {actionLoading === item.id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <RotateCcw className="w-3 h-3" />
-                                    )}
-                                    <span className="ml-1 text-xs">Return</span>
-                                  </Button>
+                                  {isReturned(item.id) ? (
+                                    <div className="text-red-500">Returned</div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        handleReturn(item.id, item.quantity)
+                                      }
+                                      disabled={actionLoading === item.id}
+                                      className="flex-1"
+                                    >
+                                      {actionLoading === item.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <RotateCcw className="w-3 h-3" />
+                                      )}
+                                      <span className="ml-1 text-xs">
+                                        Return
+                                      </span>
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -433,7 +534,9 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
               </Card>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">Failed to load order details</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Failed to load order details
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -447,5 +550,5 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
         variant={confirmModal.variant}
       />
     </>
-  )
+  );
 }
