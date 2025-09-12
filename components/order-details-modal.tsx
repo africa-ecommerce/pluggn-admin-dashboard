@@ -132,8 +132,7 @@ export default function OrderDetailsModal({ isOpen, onClose, orderId }: OrderDet
       const response = await fetch(`/api/admin/order/paused/${orderId}`)
       if (response.ok) {
         const data = await response.json()
-        console.log("pausedItems", data)
-        setPausedItems(data || [])
+        setPausedItems(data.data || [])
       }
     } catch (error) {
       console.error("Error fetching paused items:", error)
